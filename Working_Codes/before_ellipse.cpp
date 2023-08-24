@@ -1,8 +1,14 @@
+//
+//  main.cpp
+//  full cg project
+//
+//  Created by Amanat Singh on 23/08/23.
+//
+
 #include <iostream>
 #include <GLUT/glut.h>
 #include <vector>
 #include <cmath>
-
 using namespace std;
 
 struct Line
@@ -10,28 +16,60 @@ struct Line
     int x_start, y_start, x_end, y_end;
 };
 
+const int windowHeight = 600.0;
+const int windowWidth = 600.0;
+
+const int LINE = 1;
+const int CIRCLE = 2;
+
 const int SIMPLE_DDA_ALGO = 1;
 const int SYMM_DDA_ALGO = 2;
 const int BRESENHAM_ALGO = 3;
 
+// Define default shape, algorithm, thickness, color for the drawn lines
+int defaultDrawShape = LINE; // Default Shape to draw
+
 int selectedAlgorithm = SIMPLE_DDA_ALGO; // Default algorithm
+
+float lineThickness = 1.0; // Default line thickness
+
+float lineColorRed = 0.0; // Default line color: green
+float lineColorGreen = 1.0;
+float lineColorBlue = 0.0;
 
 int clickCount = 0;
 int x_start, x_end, y_start, y_end;
-vector<Line> lines;
 
-float lineThickness = 1.0; // Default line thickness
-float lineColorRed = 1.0;  // Default line color: red
-float lineColorGreen = 0.0;
-float lineColorBlue = 1.0;
+int center_x = 0, center_y = 0, radius = 0;
+
+vector<Line> lines;
 
 void myInit()
 {
-    glClearColor(0.0, 0.0, 0.0, 0.0); // Set background color to black
-    glColor3f(1.0, 0.0, 1.0);         // Set lines color to magenta
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowPosition(100, 100);
+    glutInitWindowSize(windowWidth, windowHeight);
+    glutCreateWindow("Full CG Project");
+
+    glClearColor(0.3242, 0.1289, 0.4882, 0.2); // Set background color to purple
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluOrtho2D(-300, 300.0, -300.0, 300.0);
+    gluOrtho2D(-windowWidth / 2, windowWidth / 2, -windowHeight / 2, windowHeight / 2);
+}
+
+void shapeMenu(int value)
+{
+    if (defaultDrawShape != value)
+    {
+        lines.clear();
+        center_x = 0;
+        center_y = 0;
+        radius = 0;
+        clickCount = 0;
+    }
+    defaultDrawShape = value;
+
+    glutPostRedisplay();
 }
 
 void algorithmMenu(int value)
@@ -50,20 +88,35 @@ void lineColorMenu(int value)
 {
     switch (value)
     {
-    case 1: // Red
-        lineColorRed = 1.0;
+    case 1: // Violet
+        lineColorRed = 0.0;
         lineColorGreen = 0.0;
-        lineColorBlue = 0.0;
+        lineColorBlue = 0.5;
         break;
-    case 2: // Green
+    case 2: // Blue
+        lineColorRed = 0.0;
+        lineColorGreen = 0.0;
+        lineColorBlue = 1.0;
+        break;
+    case 3: // Green
         lineColorRed = 0.0;
         lineColorGreen = 1.0;
         lineColorBlue = 0.0;
         break;
-    case 3: // Blue
-        lineColorRed = 0.0;
+    case 4: // Yellow
+        lineColorRed = 1.0;
+        lineColorGreen = 1.0;
+        lineColorBlue = 0.0;
+        break;
+    case 5: // Orange
+        lineColorRed = 1.0;
+        lineColorGreen = 0.6;
+        lineColorBlue = 0.0;
+        break;
+    case 6: // Red
+        lineColorRed = 1.0;
         lineColorGreen = 0.0;
-        lineColorBlue = 1.0;
+        lineColorBlue = 0.0;
         break;
     }
     glutPostRedisplay();
@@ -85,7 +138,6 @@ void simple_dda(int x1, int y1, int x2, int y2)
 
     glBegin(GL_POINTS);
     glVertex2i(x1, y1);
-    glVertex2i(x2, y2);
 
     for (int k = 0; k < steps; k++)
     {
@@ -93,6 +145,8 @@ void simple_dda(int x1, int y1, int x2, int y2)
         y += y_inc;
         glVertex2i(round(x), round(y));
     }
+
+    glVertex2i(x2, y2);
     glEnd();
     glFlush();
 }
@@ -196,35 +250,104 @@ void bresenham(int x1, int y1, int x2, int y2)
     glFlush();
 }
 
-void myScreen()
+void drawAxes()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glColor3f(1.0, 0.0, 0.0); // Reset color for the background
+    glColor3f(1.0, 1.0, 0.1); // Reset color for the axes
 
+    glLineWidth(2);
     glBegin(GL_LINES);
     glVertex2i(300, 0);
     glVertex2i(-300, 0);
     glVertex2i(0, 300);
     glVertex2i(0, -300);
     glEnd();
+}
+
+void plotCenter()
+{
+    glPointSize(lineThickness + 2);
+    glBegin(GL_POINTS);
+    glVertex2i(center_x, center_y);
+    glEnd();
+    glFlush();
+}
+
+void plot(int x, int y)
+{
+    float ptX = x + center_x;
+    float ptY = (y + center_y);
+    glBegin(GL_POINTS);
+    glVertex2i(round(ptX), round(ptY));
+    glEnd();
+    glFlush();
+}
+
+void midPointCircleAlgo()
+{
+    int x = 0;
+    int y = radius;
+    float decision = 5 / 4 - radius;
+    plot(x, y);
+
+    while (y > x)
+    {
+        if (decision < 0)
+        {
+            x++;
+            decision += 2 * x + 1;
+        }
+        else
+        {
+            y--;
+            x++;
+            decision += 2 * (x - y) + 1;
+        }
+        plot(x, y);
+        plot(x, -y);
+        plot(-x, y);
+        plot(-x, -y);
+        plot(y, x);
+        plot(-y, x);
+        plot(y, -x);
+        plot(-y, -x);
+    }
+}
+
+void myScreen()
+{
+    drawAxes();
 
     glColor3f(lineColorRed, lineColorGreen, lineColorBlue); // Set line color
     glPointSize(lineThickness);
 
-    for (const Line &line : lines)
+    switch (defaultDrawShape)
     {
-        switch (selectedAlgorithm)
+    case LINE:
+        for (const Line &line : lines)
         {
-        case SIMPLE_DDA_ALGO:
-            simple_dda(line.x_start, line.y_start, line.x_end, line.y_end);
-            break;
-        case SYMM_DDA_ALGO:
-            symm_dda(line.x_start, line.y_start, line.x_end, line.y_end);
-            break;
-        case BRESENHAM_ALGO:
-            bresenham(line.x_start, line.y_start, line.x_end, line.y_end);
-            break;
+            switch (selectedAlgorithm)
+            {
+            case SIMPLE_DDA_ALGO:
+                simple_dda(line.x_start, line.y_start, line.x_end, line.y_end);
+                break;
+            case SYMM_DDA_ALGO:
+                symm_dda(line.x_start, line.y_start, line.x_end, line.y_end);
+                break;
+            case BRESENHAM_ALGO:
+                bresenham(line.x_start, line.y_start, line.x_end, line.y_end);
+                break;
+            }
         }
+        break;
+
+    case CIRCLE:
+        plotCenter();
+        midPointCircleAlgo();
+        break;
+
+    default:
+        break;
     }
 
     glFlush();
@@ -232,20 +355,39 @@ void myScreen()
 
 void myMouse(int button, int state, int x, int y)
 {
+    // cout << "x = " << x << endl;
+    // cout << "y = " << y << endl;
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
     {
         if (clickCount == 0)
         {
             x_start = x - 300;
             y_start = 300 - y;
+            if (defaultDrawShape == CIRCLE)
+            {
+                center_x = x_start;
+                center_y = y_start;
+                radius = 0;
+                cout << "center_x = " << center_x << endl;
+                cout << "center_y = " << center_y << endl;
+                cout << "radius = " << radius << endl;
+            }
             clickCount++;
         }
         else if (clickCount == 1)
         {
             x_end = x - 300;
             y_end = 300 - y;
-            clickCount++;
-            lines.push_back({x_start, y_start, x_end, y_end});
+            if (defaultDrawShape == CIRCLE)
+            {
+                radius = int(sqrt(pow((x_end - x_start), 2) + pow((y_end - y_start), 2)));
+                cout << "radius = " << radius << endl;
+            }
+            else
+            {
+                lines.push_back({x_start, y_start, x_end, y_end});
+            }
+            // clickCount++;
             clickCount = 0; // Reset the click count
         }
         glutPostRedisplay();
@@ -255,12 +397,11 @@ void myMouse(int button, int state, int x, int y)
 int main(int argc, char **argv)
 {
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-    glutInitWindowPosition(100, 100);
-    glutInitWindowSize(600, 600);
-    glutCreateWindow("Line Drawing Algorithms");
-
     myInit();
+
+    int shapeSelectMenu = glutCreateMenu(shapeMenu);
+    glutAddMenuEntry("Line", LINE);
+    glutAddMenuEntry("Circle", CIRCLE);
 
     int algorithmSubMenu = glutCreateMenu(algorithmMenu);
     glutAddMenuEntry("Simple DDA Algorithm", SIMPLE_DDA_ALGO);
@@ -271,13 +412,19 @@ int main(int argc, char **argv)
     glutAddMenuEntry("1", 1);
     glutAddMenuEntry("2", 2);
     glutAddMenuEntry("3", 3);
+    glutAddMenuEntry("4", 4);
+    glutAddMenuEntry("5", 5);
 
     int lineColorSubMenu = glutCreateMenu(lineColorMenu);
-    glutAddMenuEntry("Red", 1);
-    glutAddMenuEntry("Green", 2);
-    glutAddMenuEntry("Blue", 3);
+    glutAddMenuEntry("Violet", 1);
+    glutAddMenuEntry("Blue", 2);
+    glutAddMenuEntry("Green", 3);
+    glutAddMenuEntry("Yellow", 4);
+    glutAddMenuEntry("Orange", 5);
+    glutAddMenuEntry("Red", 6);
 
     glutCreateMenu(algorithmMenu);
+    glutAddSubMenu("Select Shape", shapeSelectMenu);
     glutAddSubMenu("Select Algorithm", algorithmSubMenu);
     glutAddSubMenu("Line Thickness", lineThicknessSubMenu);
     glutAddSubMenu("Line Color", lineColorSubMenu);
@@ -290,67 +437,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-/*#include <iostream>
-#include <GL/freeglut.h>
-using namespace std;
-float x = 0, y, x2, y2, m, i, j, p;
-int dx = 0, dy = 0, r;
-
-void display(void) {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glColor3f(0.0, 1.0, 0.0);
-    glBegin(GL_POINTS);
-    p = 1 - r;
-    while (x <= y) {
-        if (p < 0) {
-            x = x + 1;
-            y = y;
-            cout << x << " ," << y << endl;
-            p = p + (2 * x) + 1;
-        }
-        else {
-            x = x + 1;
-            y = y - 1;
-            cout << x << " ," << y << endl;
-            p = p + (2 * x) + 1 - (2 * y);
-        }
-        glVertex3f(((x / 100)), ((y / 100)), 0.0);
-        glVertex3f(((y / 100)), ((x / 100)), 0.0);
-        glVertex3f((-(x / 100)), (-(y / 100)), 0.0);
-        glVertex3f((-(x / 100)), ((y / 100)), 0.0);
-        glVertex3f(((x / 100)), (-(y / 100)), 0.0);
-        glVertex3f(((y / 100)), (-(x / 100)), 0.0);
-        glVertex3f((-(y / 100)), (-(x / 100)), 0.0);
-        glVertex3f((-(y / 100)), ((x / 100)), 0.0);
-    }
-    glEnd();
-
-    glFlush();
-}
-
-void init(void) {
-    glClearColor(0.0, 0.0, 0.0, 0.0);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
-}
-
-int main(int argc, char** argv) {
-    cout << "Enter radius: ";
-    cin >> r;
-    y = r;
-
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-    glutInitWindowSize(500, 500);
-    glutInitWindowPosition(100, 100);
-    glutCreateWindow("Circle Drawing");
-    glutDisplayFunc(display);
-    init();
-    glutMainLoop();
-
-    return 0;
-}
-*/
